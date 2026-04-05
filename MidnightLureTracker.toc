@@ -1,0 +1,9 @@
+## Interface: 120001, 120005
+## Title: Midnight Lure Tracker
+## Notes: All-in-one tracker for Majestic Lures, daily kills, and materials.
+## Author: Xcz
+## Version: 1.3
+## SavedVariables: MLT_Data
+## SavedVariablesPerCharacter: MLT_CharData
+
+MidnightLureTracker.lua
