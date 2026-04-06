@@ -658,9 +658,6 @@ function MLT:UpdateData()
             self.relaxedBtn.text:SetText("Relaxed: |cFFFF0000Inactive|r")
         end
     end
-
-    
-
     
     local cdOnTaxing = GetSpellCooldownLeft(BUFF_TAXING)
     SetButtonCD(self.taxingBtn, cdOnTaxing)
@@ -759,14 +756,11 @@ MLT:SetScript("OnEvent", function(self, event, arg1)
         self:CheckVisibility()
 
     elseif event == "QUEST_LOG_UPDATE" or event == "BAG_UPDATE_DELAYED" or event == "ZONE_CHANGED_NEW_AREA" then
-        --if self:IsShown() then
-            self:UpdateData()
-        --end
+        self:UpdateData()
 
     elseif event == "UNIT_AURA" and arg1 == "player" then
-        --if self:IsShown() then
-            self:UpdateData()
-        --end
+        self:UpdateData()
+
     end    
 end)
 
