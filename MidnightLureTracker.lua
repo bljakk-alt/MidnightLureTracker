@@ -97,6 +97,12 @@ local function HasSkinningProfession()
     return false
 end
 
+local function IsSafeToAccess()
+    inInstance, instanceType = IsInInstance()
+    return not inInstance and not UnitAffectingCombat("player")
+end
+
+
 -- UNIVERSAL AURA SCANNER
 local function PlayerHasAura(targetSpellID)
     if not targetSpellID then return false end
@@ -176,8 +182,8 @@ end
 
 -- cooldown on spells
 local function GetSpellCooldownLeft(spellID)
-    -- cannot access this while infight
-    if not UnitAffectingCombat("player") then
+    -- cannot access this while infight or in dungeons
+    if IsSafeToAccess() then
         local cd = C_Spell.GetSpellCooldown(spellID)
         if not cd or not cd.startTime or not cd.duration then
             lastCDOnTaxing = 0
@@ -253,7 +259,7 @@ end
 
 -- return true if made visible, otherwise false
 function MLT:ToggleVisibility()
-    if not UnitAffectingCombat("player") then
+    if IsSafeToAccess() then
         if self:IsShown() then
             self:Hide()
         else
@@ -280,9 +286,18 @@ function MLT:SetupUI()
     if self.isSetup then return end
     self.isSetup = true
 
-    self:SetSize(460, (#LURE_DATA * ROW_HEIGHT) + 120)
+    local defaultWidth = 460
+    local defaultHeight = (#LURE_DATA * ROW_HEIGHT) + 120
+    self:SetSize(MLT_CharData.width or defaultWidth, MLT_CharData.height or defaultHeight)
+    
+    if MLT_CharData.scale then
+        self:SetScale(MLT_CharData.scale)
+    end
+
     self:SetFrameStrata("HIGH")
     self:SetMovable(true)
+    self:SetResizable(true)
+    self:SetResizeBounds(400, 200, 800, 1000)
     self:EnableMouse(true)
     self:RegisterForDrag("LeftButton")
     
@@ -292,6 +307,46 @@ function MLT:SetupUI()
     local title = self:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     title:SetPoint("TOP", 0, -10)
     title:SetText("Midnight Lure Tracker")
+
+    -- WINDOW CONTROLS (Close, Scale Up, Scale Down)
+    local closeBtn = CreateFrame("Button", nil, self, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", self, "TOPRIGHT", -2, -2)
+
+    local scaleUpBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
+    scaleUpBtn:SetSize(20, 20)
+    scaleUpBtn:SetPoint("RIGHT", closeBtn, "LEFT", -2, 0)
+    scaleUpBtn:SetText("+")
+    scaleUpBtn:SetScript("OnClick", function()
+        local newScale = math.min(2.0, self:GetScale() + 0.1)
+        self:SetScale(newScale)
+        MLT_CharData.scale = newScale
+    end)
+
+    local scaleDownBtn = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
+    scaleDownBtn:SetSize(20, 20)
+    scaleDownBtn:SetPoint("RIGHT", scaleUpBtn, "LEFT", -2, 0)
+    scaleDownBtn:SetText("-")
+    scaleDownBtn:SetScript("OnClick", function()
+        local newScale = math.max(0.5, self:GetScale() - 0.1)
+        self:SetScale(newScale)
+        MLT_CharData.scale = newScale
+    end)
+
+    -- RESIZE GRIP
+    local resizeGrip = CreateFrame("Button", nil, self)
+    resizeGrip:SetSize(16, 16)
+    resizeGrip:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -2, 2)
+    resizeGrip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    resizeGrip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    resizeGrip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    resizeGrip:SetScript("OnMouseDown", function(btn, button)
+        if button == "LeftButton" then self:StartSizing("BOTTOMRIGHT") end
+    end)
+    resizeGrip:SetScript("OnMouseUp", function()
+        self:StopMovingOrSizing()
+        MLT_CharData.width = self:GetWidth()
+        MLT_CharData.height = self:GetHeight()
+    end)
 
     -- COLUMN HEADERS
     local lblCraft = self:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -673,7 +728,7 @@ function MLT:UpdateData()
     end
 
     --disable button if have relaxed buff
-    if not UnitAffectingCombat("player") then
+    if IsSafeToAccess() then
         --disable button if have relaxed buff
         if hasRelaxed and self.relaxedBtn:IsEnabled() then
             self.relaxedBtn:Disable()
@@ -774,7 +829,12 @@ SlashCmdList["MLT"] = function(msg)
     if cmd == "reset" then
         MLT_CharData.detached = false
         MLT_CharData.point, MLT_CharData.relativePoint, MLT_CharData.x, MLT_CharData.y = nil, nil, nil, nil
+        MLT_CharData.scale, MLT_CharData.width, MLT_CharData.height = nil, nil, nil
         MLT.forceShow = false
+        if MLT.isSetup then
+            MLT:SetScale(1)
+            MLT:SetSize(460, (#LURE_DATA * ROW_HEIGHT) + 120)
+        end
         MLT:UpdateVisibility(false)
         print("|cFF00FFFF[MLT]|r Position and attachment reset.")
         
